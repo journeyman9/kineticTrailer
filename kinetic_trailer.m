@@ -24,7 +24,7 @@ v = 10; %[m/s] 2.2352
 L1_star = a1 + h1; %[m]
 e1 = L1_star - L1; %[m]
 
-orientation = 'right'; % right for horizontal, up for vertical, left for pi, and down for 3pi/2
+orientation = 'up'; % right for horizontal, up for vertical, left for pi, and down for 3pi/2
 
 %% x = [y_d1, psi_d1, theta_d, theta, d1, psi_1]
 M = [(m1 + m2)      -m2 * (a2 + h1)          -m2 * a2           0       0       0;
@@ -106,7 +106,7 @@ end
 % [K S e] = lqry(sys, QQ, RR, NN);
 
 %% Feedforward
-track_vector = csvread('t_lanechange.txt');
+track_vector = csvread('t_oval.txt');
 s = track_vector(:, 5);
 t = abs(s / v);
 curv = [t track_vector(:, 3)];
