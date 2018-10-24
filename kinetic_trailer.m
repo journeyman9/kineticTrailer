@@ -127,19 +127,19 @@ y_IC = 0;
 switch orientation
     case 'right'
         trailerIC = [track_vector(1,1)-y_IC*sin(0), track_vector(1, 2)+y_IC*cos(0)]; %x_t y_t
-        tractorIC = [trailerIC(1) + (L2+e1), trailerIC(2)]; 
+        tractorIC = [trailerIC(1) + (a2+h1), trailerIC(2)]; 
         ICs = [0; deg2rad(0); deg2rad(0); deg2rad(0); y_IC; deg2rad(0)]; 
     case 'up'
         trailerIC = [track_vector(1,1)-y_IC*sin(pi/2), track_vector(1, 2)+y_IC*cos(pi/2)]; %x_t y_t
-        tractorIC = [trailerIC(1), trailerIC(2) + (L2+e1)];
+        tractorIC = [trailerIC(1), trailerIC(2) + (a2+h1)];
         ICs = [0; deg2rad(0); deg2rad(0); deg2rad(0); y_IC; deg2rad(90)];
     case 'left'
         trailerIC = [track_vector(1,1)-y_IC*sin(pi), track_vector(1, 2)+y_IC*cos(pi)]; %x_t y_t
-        tractorIC = [trailerIC(1) - (L2+e1), trailerIC(2)]; 
+        tractorIC = [trailerIC(1) - (a2+h1), trailerIC(2)]; 
         ICs = [0; deg2rad(0); deg2rad(0); deg2rad(0); y_IC; deg2rad(180)];
     case 'down'
         trailerIC = [track_vector(1,1)-y_IC*sin(3*pi/2), track_vector(1, 2)+y_IC*cos(3*pi/2)]; %x_t y_t
-        tractorIC = [trailerIC(1), trailerIC(2) - (L2+e1)];
+        tractorIC = [trailerIC(1), trailerIC(2) - (a2+h1)];
         ICs = [0; deg2rad(0); deg2rad(0); deg2rad(0); y_IC; deg2rad(270)]; 
 end
 
@@ -216,9 +216,7 @@ movegui('east')
 hold off
 
 %% Animation
-W_c = L1;
 H_c = L2 / 3;
-W_t = L2;
 H_t = L2 / 3;
 
 time = 0:.01:tout(terminal_index);
@@ -245,8 +243,17 @@ for i = 1:length(time)
     ang0 = psi_trailer(i);
     ang1 = psi_tractor(i);
     
-    % tractor ccw pts starting with top right -- rear axle
-    x_trac = [tractor_x(i)+W_c tractor_x(i) tractor_x(i) tractor_x(i)+W_c tractor_x(i)+W_c]; 
+    % trailer ccw pts starting with top right -- cg
+    x_trail = [trailer_x(i)+a2 trailer_x(i)-b2 trailer_x(i)-b2 trailer_x(i)+a2 trailer_x(i)+a2]; 
+    y_trail = [trailer_y(i)+H_t/2 trailer_y(i)+H_t/2 trailer_y(i)-H_t/2 trailer_y(i)-H_t/2 trailer_y(i)+H_t/2];
+    corners_trail = zeros(5, 3);
+    for j = 1:length(x_trail)
+        corners_trail(j, 1:3) = center(trailer_x(i), trailer_y(i)) * DCM(ang0) * center(-trailer_x(i), -trailer_y(i)) * [x_trail(j); y_trail(j); 1];
+    end
+    plot(corners_trail(:, 1), corners_trail(:, 2), 'b-', 'LineWidth', 2)
+    
+    % tractor ccw pts starting with top right -- cg
+    x_trac = [tractor_x(i)+a1 tractor_x(i)-b1 tractor_x(i)-b1 tractor_x(i)+a1 tractor_x(i)+a1]; 
     y_trac = [tractor_y(i)+H_c/2 tractor_y(i)+H_c/2 tractor_y(i)-H_c/2 tractor_y(i)-H_c/2 tractor_y(i)+H_c/2];
     corners_trac = zeros(5, 3);
     for j = 1:length(x_trac)
@@ -254,15 +261,17 @@ for i = 1:length(time)
     end
     plot(corners_trac(:, 1), corners_trac(:, 2), 'g-', 'LineWidth', 2)
     
-    % trailer ccw pts starting with top right -- rear axle
-    x_trail = [trailer_x(i)+W_t trailer_x(i) trailer_x(i) trailer_x(i)+W_t trailer_x(i)+W_t]; 
-    y_trail = [trailer_y(i)+H_t/2 trailer_y(i)+H_t/2 trailer_y(i)-H_t/2 trailer_y(i)-H_t/2 trailer_y(i)+H_t/2];
-    corners_trail = zeros(5, 3);
-    for j = 1:length(x_trail)
-        corners_trail(j, 1:3) = center(trailer_x(i), trailer_y(i)) * DCM(ang0) * center(-trailer_x(i), -trailer_y(i)) * [x_trail(j); y_trail(j); 1];
-    end
-    plot(corners_trail(:, 1), corners_trail(:, 2), 'b-', 'LineWidth', 2)
-
+    % cg
+    plot(trailer_x(i), trailer_y(i), 'b+')
+    plot(tractor_x(i), tractor_y(i), 'g+')
+    
+    % hitch point (should be the same for both)
+    hitch_trail = center(trailer_x(i), trailer_y(i)) * DCM(ang0) * center(-trailer_x(i), -trailer_y(i)) * [trailer_x(i)+a2; trailer_y(i); 1];
+    plot(hitch_trail(1), hitch_trail(2), 'b*')
+    
+    hitch_trac = center(tractor_x(i), tractor_y(i)) * DCM(ang1) * center(-tractor_x(i), -tractor_y(i)) * [tractor_x(i)-h1; tractor_y(i); 1];
+    plot(hitch_trac(1), hitch_trac(2), 'g*')
+    
     xlim([trailer_x(i)-25 trailer_x(i)+25])
     ylim([ trailer_y(i)-25 trailer_y(i)+25])
     xlabel('Position in x [m]')
