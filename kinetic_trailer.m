@@ -19,7 +19,7 @@ a2 = 6.2941; %[m]
 L2 = 12.192; %[m]
 b2 = L2 - a2; %[m]
 C3 = 1057244; %[N/rad] 4 tires
-v = 2.2352; %[m/s]
+v = 10; %[m/s] 2.2352
 
 L1_star = a1 + h1; %[m]
 e1 = L1_star - L1; %[m]
@@ -45,10 +45,11 @@ N = [C1; C1*a1; 0; 0; 0; 0];
 
 A = M \ K;
 B = M \ N;
-C = [0 0 0 1 0 0;
-     0 0 0 0 1 0;
-     0 0 0 0 0 1];
-D = zeros(3, 1);
+% C = [0 0 0 1 0 0;
+%      0 0 0 0 1 0;
+%      0 0 0 0 0 1];
+C = eye(6);
+D = zeros(6, 1);
 
 sys = ss(A, B, C, D);
 
@@ -79,30 +80,30 @@ if A_ev < 0
 end
 
 %% LQR Gains
-G = [0 0 0 0 0 0;
-     0 0 0 0 0 0;
-     0 0 0 0 0 0;
-     0 0 0 1 0 0;
-     0 0 0 0 1 0;
-     0 0 0 0 0 1];
-H = zeros(6, 1);
-rho = 1;
-R = 1;
-Q = [0 0 0 0 0 0;
-     0 0 0 0 0 0;
-     0 0 0 0 0 0;
-     0 0 0 1 0 0;
-     0 0 0 0 1 0;
-     0 0 0 0 0 1];
-
-QQ = G'*Q*G;
-RR = H'*Q*H + rho*R;
-NN = G'*Q*H;
-QN = eye(2); %Match dimension of state
-RN = eye(2); %Match dimension of output
-Bbar = B;
-
-[K S e] = lqry(sys, QQ, RR, NN);
+% G = [0 0 0 0 0 0;
+%      0 0 0 0 0 0;
+%      0 0 0 0 0 0;
+%      0 0 0 1 0 0;
+%      0 0 0 0 1 0;
+%      0 0 0 0 0 1];
+% H = zeros(6, 1);
+% rho = 1;
+% R = 1;
+% Q = [0 0 0 0 0 0;
+%      0 0 0 0 0 0;
+%      0 0 0 0 0 0;
+%      0 0 0 1 0 0;
+%      0 0 0 0 1 0;
+%      0 0 0 0 0 1];
+% 
+% QQ = G'*Q*G;
+% RR = H'*Q*H + rho*R;
+% NN = G'*Q*H;
+% QN = eye(2); %Match dimension of state
+% RN = eye(2); %Match dimension of output
+% Bbar = B;
+% 
+% [K S e] = lqry(sys, QQ, RR, NN);
 
 %% Feedforward
 track_vector = csvread('t_lanechange.txt');
@@ -131,23 +132,23 @@ switch orientation
     case 'up'
         trailerIC = [track_vector(1,1)-y_IC*sin(pi/2), track_vector(1, 2)+y_IC*cos(pi/2)]; %x_t y_t
         tractorIC = [trailerIC(1), trailerIC(2) + (L2+e1)];
-        ICs = [0; deg2rad(0); deg2rad(0); deg2rad(90); y_IC; deg2rad(90)];
+        ICs = [0; deg2rad(0); deg2rad(0); deg2rad(0); y_IC; deg2rad(90)];
     case 'left'
         trailerIC = [track_vector(1,1)-y_IC*sin(pi), track_vector(1, 2)+y_IC*cos(pi)]; %x_t y_t
         tractorIC = [trailerIC(1) - (L2+e1), trailerIC(2)]; 
-        ICs = [0; deg2rad(0); deg2rad(0); deg2rad(180); y_IC; deg2rad(180)];
+        ICs = [0; deg2rad(0); deg2rad(0); deg2rad(0); y_IC; deg2rad(180)];
     case 'down'
         trailerIC = [track_vector(1,1)-y_IC*sin(3*pi/2), track_vector(1, 2)+y_IC*cos(3*pi/2)]; %x_t y_t
         tractorIC = [trailerIC(1), trailerIC(2) - (L2+e1)];
-        ICs = [0; deg2rad(0); deg2rad(0); deg2rad(270); y_IC; deg2rad(270)]; 
+        ICs = [0; deg2rad(0); deg2rad(0); deg2rad(0); y_IC; deg2rad(270)]; 
 end
 
 sim('trailer_kinetic.slx')
 
-%e = [theta_e, d1_e, psi1_e]
-theta_e = error(:, 1);
-d1_e = error(:, 2);
-psi1_e = error(:, 3);
+% %e = [theta_e, d1_e, psi1_e]
+% theta_e = error(:, 1);
+% d1_e = error(:, 2);
+% psi1_e = error(:, 3);
 
 %% Jack-knife check 
 hitch_angle = odometry(:, 8);
@@ -171,30 +172,30 @@ psi_tractor = odometry(1:terminal_index, 1);
 psi_trailer = odometry(1:terminal_index, 3);
 
 %% Plots
-figure
-ax1 = subplot(3, 1, 1);
-plot(tout, rad2deg(theta_e))
-hold on
-plot(tout, 0*linspace(0, length(tout), length(tout))', '--r')
-hold off
-ylabel('\theta [{\circ}]')
-ax2 = subplot(3, 1, 2);
-plot(tout, rad2deg(d1_e))
-hold on
-plot(tout, 0*linspace(0, length(tout), length(tout))', '--r')
-hold off
-ylabel('d_{1e} [m]')
-ax3 = subplot(3, 1, 3);
-plot(tout, psi1_e)
-hold on
-plot(tout, 0*linspace(0, length(tout), length(tout))', '--r')
-hold off
-ylabel('psi_{1e} [{\circ}]')
-
-xlabel('time [s]')
-legend('response', 'desired')
-movegui('west')
-linkaxes([ax1 ax2, ax3], 'x')
+% figure
+% ax1 = subplot(3, 1, 1);
+% plot(tout, rad2deg(theta_e))
+% hold on
+% plot(tout, 0*linspace(0, length(tout), length(tout))', '--r')
+% hold off
+% ylabel('\theta [{\circ}]')
+% ax2 = subplot(3, 1, 2);
+% plot(tout, rad2deg(d1_e))
+% hold on
+% plot(tout, 0*linspace(0, length(tout), length(tout))', '--r')
+% hold off
+% ylabel('d_{1e} [m]')
+% ax3 = subplot(3, 1, 3);
+% plot(tout, psi1_e)
+% hold on
+% plot(tout, 0*linspace(0, length(tout), length(tout))', '--r')
+% hold off
+% ylabel('psi_{1e} [{\circ}]')
+% 
+% xlabel('time [s]')
+% legend('response', 'desired')
+% movegui('west')
+% linkaxes([ax1 ax2, ax3], 'x')
 
 figure
 hold on
@@ -215,10 +216,10 @@ movegui('east')
 hold off
 
 %% Animation
-W_c = lr;
-H_c = lt / 3;
-W_t = lt;
-H_t = lt / 3;
+W_c = L1;
+H_c = L2 / 3;
+W_t = L2;
+H_t = L2 / 3;
 
 time = 0:.01:tout(terminal_index);
 tractor_x = interp1(tout(1:terminal_index), tractor_x, time);
