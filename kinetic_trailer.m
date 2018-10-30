@@ -19,12 +19,10 @@ a2 = 6.2941; %[m]
 L2 = 12.192; %[m]
 b2 = L2 - a2; %[m]
 C3 = 1057244; %[N/rad] 4 tires
-v = 4.5; %[m/s] 2.2352
+v = 10; %[m/s] 2.2352
 
 L1_star = a1 + h1; %[m]
 e1 = L1_star - L1; %[m]
-
-orientation = 'right'; % right for horizontal, up for vertical, left for pi, and down for 3pi/2
 
 %% x = [y_d1, psi_d1, theta_d, theta, d1, psi_1]
 M = [(m1 + m2)      -m2 * (a2 + h1)          -m2 * a2           0       0       0;
@@ -45,9 +43,6 @@ E = [C1; C1*a1; 0; 0; 0; 0];
 
 A = M \ S;
 B = M \ E;
-% C = [0 0 0 1 0 0;
-%      0 0 0 0 1 0;
-%      0 0 0 0 0 1];
 C = eye(6);
 D = zeros(6, 1);
 
@@ -105,12 +100,12 @@ G = [0 0 0 1 0 0;
      0 0 0 0 0 1];
 H = zeros(3, 1);
 rho = 1;
-% R = 1;
-% Q = eye(3);
-R = 1 / (deg2rad(steer_max).^2);
-Q = [1/(deg2rad(5).^2)       0                       0;
-     0                   1/(1.^2)           0;
-     0                        0                1/(deg2rad(5).^2)];
+R = 1;
+Q = eye(3);
+% R = 1 / (deg2rad(steer_max).^2);
+% Q = [1/(deg2rad(5).^2)       0                       0;
+%      0                   1/(1.^2)           0;
+%      0                        0                1/(deg2rad(5).^2)];
 
 QQ = G'*Q*G;
 RR = H'*Q*H + rho*R;
@@ -132,42 +127,25 @@ F = MM(1:n, end-l+1:end);
 N = MM(end-m+1:end, end-l+1:end);
 
 %% Trajectory Generation
-track_vector = csvread('t_oval.txt');
-s = track_vector(:, 5);
-t = abs(s / v);
-curv = [t track_vector(:, 3)];
+track_vector = csvread('t_backward_straight.txt');
 if v < 0
-    yaw_tractor = [t track_vector(:, 4)-pi];
-else
-    yaw_tractor = [t track_vector(:, 4)];
+    fprintf('Going Backwards!')
+    track_vector(:, 4) = track_vector(:, 4) - pi;
 end
-theta_r = [t 0*track_vector(:, 4)];
-y_r = [t track_vector(:, 2)];
-x_r = [t track_vector(:, 1)];
-
-sim_time = t(end, 1);
 
 %% Simulink
 y_IC = 0;
+psi_2_IC = deg2rad(0) + track_vector(1, 4);
+hitch_IC = deg2rad(0);
+
+look_ahead = 5; %indices
+
 % x = [y_d1, psi_d1, theta_d, theta, d1, psi_1]
-switch orientation
-    case 'right'
-        trailerIC = [track_vector(1,1)-y_IC*sin(0), track_vector(1, 2)+y_IC*cos(0)]; %x_t y_t
-        tractorIC = [trailerIC(1) + (a2+h1), trailerIC(2)]; 
-        ICs = [0; deg2rad(0); deg2rad(0); deg2rad(0); y_IC; deg2rad(0)]; 
-    case 'up'
-        trailerIC = [track_vector(1,1)-y_IC*sin(pi/2), track_vector(1, 2)+y_IC*cos(pi/2)]; %x_t y_t
-        tractorIC = [trailerIC(1), trailerIC(2) + (a2+h1)];
-        ICs = [0; deg2rad(0); deg2rad(0); deg2rad(0); y_IC; deg2rad(90)];
-    case 'left'
-        trailerIC = [track_vector(1,1)-y_IC*sin(pi), track_vector(1, 2)+y_IC*cos(pi)]; %x_t y_t
-        tractorIC = [trailerIC(1) - (a2+h1), trailerIC(2)]; 
-        ICs = [0; deg2rad(0); deg2rad(0); deg2rad(0); y_IC; deg2rad(180)];
-    case 'down'
-        trailerIC = [track_vector(1,1)-y_IC*sin(3*pi/2), track_vector(1, 2)+y_IC*cos(3*pi/2)]; %x_t y_t
-        tractorIC = [trailerIC(1), trailerIC(2) - (a2+h1)];
-        ICs = [0; deg2rad(0); deg2rad(0); deg2rad(0); y_IC; deg2rad(270)]; 
-end
+psi_1_IC = hitch_IC + psi_2_IC;
+
+trailerIC = [track_vector(1, 1)-y_IC*sin(psi_2_IC), track_vector(1, 2)+y_IC*cos(psi_2_IC)]; %x2, y2
+tractorIC = [trailerIC(1)+a2*cos(psi_2_IC)+h1*cos(psi_1_IC), trailerIC(2)+a2*sin(psi_2_IC)+h1*sin(psi_1_IC)]; %x1, y1
+ICs = [0; deg2rad(0); deg2rad(0); deg2rad(0); y_IC; psi_1_IC];
 
 sim('trailer_kinetic.slx')
 
@@ -178,16 +156,26 @@ psi1_e = error(:, 6);
 
 %% Jack-knife check 
 hitch_angle = odometry(:, 8);
+hitch_max = 90; %[degrees]
+
 for terminal_index = 1:length(hitch_angle)
-    if hitch_angle(terminal_index) > deg2rad(90)
-        fprintf('Jackknifed!\n')
+    if hitch_angle(terminal_index) > deg2rad(hitch_max)
+        fprintf('Jackknifed! theta = %4.2f \n', rad2deg(hitch_angle(terminal_index)))
         break
-    elseif hitch_angle(terminal_index) < deg2rad(-90)
-        fprintf('Jackknifed!\n')
+    elseif hitch_angle(terminal_index) < deg2rad(-hitch_max)
+        fprintf('Jackknifed! theta = %4.2f \n', rad2deg(hitch_angle(terminal_index)))
         break
     else
         continue
     end
+end
+
+%% Goal check
+if goal(end) == 1
+    fprintf('GOAL with d = %4.2f m and psi = %4.2f degrees\n', d_goal(end), rad2deg(psi_goal(end)))
+else
+    [minimum, best_index] = min(d_goal(1:terminal_index));
+    fprintf('TIMES UP. Closest: d = %4.2f m and psi = %4.2f degrees\n', minimum, rad2deg(psi_goal(best_index)))
 end
 
 tractor_x = odometry(1:terminal_index, 7);
@@ -203,18 +191,21 @@ ax1 = subplot(3, 1, 1);
 plot(tout, rad2deg(theta_e))
 hold on
 plot(tout, 0*linspace(0, length(tout), length(tout))', '--r')
+line([tout(terminal_index) tout(terminal_index)], [max(rad2deg(theta_e)) min(rad2deg(theta_e))],'Color','red')
 hold off
 ylabel('\theta [{\circ}]')
 ax2 = subplot(3, 1, 2);
 plot(tout, d1_e)
 hold on
 plot(tout, 0*linspace(0, length(tout), length(tout))', '--r')
+line([tout(terminal_index) tout(terminal_index)], [max(d1_e) min(d1_e)],'Color','red')
 hold off
 ylabel('d_{1e} [m]')
 ax3 = subplot(3, 1, 3);
 plot(tout, rad2deg(psi1_e))
 hold on
 plot(tout, 0*linspace(0, length(tout), length(tout))', '--r')
+line([tout(terminal_index) tout(terminal_index)], [max(rad2deg(psi1_e)) min(rad2deg(psi1_e))],'Color','red')
 hold off
 ylabel('\psi_{1e} [{\circ}]')
 
