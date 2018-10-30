@@ -19,12 +19,12 @@ a2 = 6.2941; %[m]
 L2 = 12.192; %[m]
 b2 = L2 - a2; %[m]
 C3 = 1057244; %[N/rad] 4 tires
-v = 25; %[m/s] 2.2352
+v = 4.5; %[m/s] 2.2352
 
 L1_star = a1 + h1; %[m]
 e1 = L1_star - L1; %[m]
 
-orientation = 'up'; % right for horizontal, up for vertical, left for pi, and down for 3pi/2
+orientation = 'right'; % right for horizontal, up for vertical, left for pi, and down for 3pi/2
 
 %% x = [y_d1, psi_d1, theta_d, theta, d1, psi_1]
 M = [(m1 + m2)      -m2 * (a2 + h1)          -m2 * a2           0       0       0;
@@ -34,17 +34,17 @@ M = [(m1 + m2)      -m2 * (a2 + h1)          -m2 * a2           0       0       
          0               0                       0              0       1       0;
          0               0                       0              0       0       1];
      
-K = (-1 / v) * [(C1+C2+C3)              (C1*a1 - C2*b1 - C3*(h1+L2) + (m1+m2)*v.^2)          (-C3*L2)     (-C3*v)   0       0;
+S = (-1 / v) * [(C1+C2+C3)              (C1*a1 - C2*b1 - C3*(h1+L2) + (m1+m2)*v.^2)          (-C3*L2)     (-C3*v)   0       0;
                 (C1*a1 - C2*b1 - C3*h1) (C1*a1.^2 + C2*b1.^2 + C3*h1*(h1+L2) - m2*h1*v.^2)   (C3*h1*L2)  (C3*h1*v)  0       0;
                 (-C3*L2)                     (C3*L2*(h1+L2) - m2*a2*v.^2)                    (C3*L2.^2)  (C3*L2*v)  0       0;
                    0                                       0                                    -v           0      0       0;
                   -v                                       0                                     0           0      0      -v.^2;
                    0                                      -v                                     0           0      0       0];
 
-N = [C1; C1*a1; 0; 0; 0; 0];
+E = [C1; C1*a1; 0; 0; 0; 0];
 
-A = M \ K;
-B = M \ N;
+A = M \ S;
+B = M \ E;
 % C = [0 0 0 1 0 0;
 %      0 0 0 0 1 0;
 %      0 0 0 0 0 1];
@@ -79,34 +79,60 @@ if A_ev < 0
         disp('NOT asymptotically stable from eigenvalues')
 end
 
-%% LQR Gains
-% G = [0 0 0 0 0 0;
-%      0 0 0 0 0 0;
-%      0 0 0 0 0 0;
-%      0 0 0 1 0 0;
-%      0 0 0 0 1 0;
-%      0 0 0 0 0 1];
-% H = zeros(6, 1);
-% rho = 1;
-% R = 1;
-% Q = [0 0 0 0 0 0;
-%      0 0 0 0 0 0;
-%      0 0 0 0 0 0;
-%      0 0 0 1 0 0;
-%      0 0 0 0 1 0;
-%      0 0 0 0 0 1];
-% 
-% QQ = G'*Q*G;
-% RR = H'*Q*H + rho*R;
-% NN = G'*Q*H;
-% QN = eye(2); %Match dimension of state
-% RN = eye(2); %Match dimension of output
-% Bbar = B;
-% 
-% [K S e] = lqry(sys, QQ, RR, NN);
-
 %% Feedforward
-track_vector = csvread('t_circle.txt');
+% g = 9.81;
+% m1_star = m1 + m2 * b2 / L2;
+% a1_ = a1 + ((m2 * b2 / L2) / m1_star) * h1;
+% b1_ = b1 - ((m2 * b2 / L2) / m1_star) * h1;
+% F_z1_ = m1_star * g * b1_ / L1;
+% F_z2_ = m1_star * g * a1_ / L1;
+% F_z3_ = m2 * g * a2 / L2;
+% 
+% f1 = C1 / F_z1_;
+% f2 = C2 / F_z2_;
+% s1 = a1 * b1 * (f1 - f2) / (f1 * b1 + f2 * a1);
+% s1_ = s1 + (m2 * b2 / L2) * h1 / m1_star;
+% V_crit = sqrt( (C1*a1.^2 + C2*b1.^2 - (C1 + C2) * s1.^2) / (m1_star * s1_));
+% 
+% v_ch = sqrt(L1.^2 * C1 * C2 / ((m1_star) * (C2 * b1 - C1 * a1)));
+% K_k = 1 ./ (L1 * (1 + (v / V_crit)));
+
+%% LQR Gains
+steer_max = 45; %[degrees]
+
+G = [0 0 0 1 0 0;
+     0 0 0 0 1 0;
+     0 0 0 0 0 1];
+H = zeros(3, 1);
+rho = 1;
+% R = 1;
+% Q = eye(3);
+R = 1 / (deg2rad(steer_max).^2);
+Q = [1/(deg2rad(5).^2)       0                       0;
+     0                   1/(1.^2)           0;
+     0                        0                1/(deg2rad(5).^2)];
+
+QQ = G'*Q*G;
+RR = H'*Q*H + rho*R;
+NN = G'*Q*H;
+QN = eye(2); %Match dimension of state
+RN = eye(2); %Match dimension of output
+Bbar = B;
+
+[K S e] = lqr(sys, QQ, RR, NN);
+% [est, L, P] = kalman(ss(A, [B Bbar], C, zeros(2,2)), QN, RN);
+
+%% Set Point Control
+Q_sp = [A, B; G, H];
+[n, n] = size(A);
+[l, p] = size(G); %Number of controlled outputs
+m = 1; %Number of process inputs, or just inputs
+MM = pinv(Q_sp); %psuedo inverse because matrix is not square
+F = MM(1:n, end-l+1:end);
+N = MM(end-m+1:end, end-l+1:end);
+
+%% Trajectory Generation
+track_vector = csvread('t_oval.txt');
 s = track_vector(:, 5);
 t = abs(s / v);
 curv = [t track_vector(:, 3)];
@@ -145,18 +171,18 @@ end
 
 sim('trailer_kinetic.slx')
 
-% %e = [theta_e, d1_e, psi1_e]
-% theta_e = error(:, 1);
-% d1_e = error(:, 2);
-% psi1_e = error(:, 3);
+% e = [yd_1; psi_d_1; theta_d; theta; d_1; psi_1]
+theta_e = error(:, 4);
+d1_e = error(:, 5);
+psi1_e = error(:, 6);
 
 %% Jack-knife check 
 hitch_angle = odometry(:, 8);
 for terminal_index = 1:length(hitch_angle)
-    if hitch_angle(terminal_index) > deg2rad(60)
+    if hitch_angle(terminal_index) > deg2rad(90)
         fprintf('Jackknifed!\n')
         break
-    elseif hitch_angle(terminal_index) < deg2rad(-60)
+    elseif hitch_angle(terminal_index) < deg2rad(-90)
         fprintf('Jackknifed!\n')
         break
     else
@@ -172,30 +198,30 @@ psi_tractor = odometry(1:terminal_index, 1);
 psi_trailer = odometry(1:terminal_index, 3);
 
 %% Plots
-% figure
-% ax1 = subplot(3, 1, 1);
-% plot(tout, rad2deg(theta_e))
-% hold on
-% plot(tout, 0*linspace(0, length(tout), length(tout))', '--r')
-% hold off
-% ylabel('\theta [{\circ}]')
-% ax2 = subplot(3, 1, 2);
-% plot(tout, rad2deg(d1_e))
-% hold on
-% plot(tout, 0*linspace(0, length(tout), length(tout))', '--r')
-% hold off
-% ylabel('d_{1e} [m]')
-% ax3 = subplot(3, 1, 3);
-% plot(tout, psi1_e)
-% hold on
-% plot(tout, 0*linspace(0, length(tout), length(tout))', '--r')
-% hold off
-% ylabel('psi_{1e} [{\circ}]')
-% 
-% xlabel('time [s]')
-% legend('response', 'desired')
-% movegui('west')
-% linkaxes([ax1 ax2, ax3], 'x')
+figure
+ax1 = subplot(3, 1, 1);
+plot(tout, rad2deg(theta_e))
+hold on
+plot(tout, 0*linspace(0, length(tout), length(tout))', '--r')
+hold off
+ylabel('\theta [{\circ}]')
+ax2 = subplot(3, 1, 2);
+plot(tout, d1_e)
+hold on
+plot(tout, 0*linspace(0, length(tout), length(tout))', '--r')
+hold off
+ylabel('d_{1e} [m]')
+ax3 = subplot(3, 1, 3);
+plot(tout, rad2deg(psi1_e))
+hold on
+plot(tout, 0*linspace(0, length(tout), length(tout))', '--r')
+hold off
+ylabel('\psi_{1e} [{\circ}]')
+
+xlabel('time [s]')
+legend('response', 'desired')
+movegui('west')
+linkaxes([ax1 ax2, ax3], 'x')
 
 figure
 hold on
