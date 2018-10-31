@@ -19,7 +19,7 @@ a2 = 6.2941; %[m]
 L2 = 12.192; %[m]
 b2 = L2 - a2; %[m]
 C3 = 1057244; %[N/rad] 4 tires
-v = 10; %[m/s] 2.2352
+v = 4.5; %[m/s] 2.2352
 
 L1_star = a1 + h1; %[m]
 e1 = L1_star - L1; %[m]
@@ -149,7 +149,7 @@ ICs = [0; deg2rad(0); deg2rad(0); deg2rad(0); y_IC; psi_1_IC];
 
 sim('trailer_kinetic.slx')
 
-% e = [yd_1; psi_d_1; theta_d; theta; d_1; psi_1]
+% e = yd_1; psi_d_1; theta_d; theta; d_1; psi_1
 theta_e = error(:, 4);
 d1_e = error(:, 5);
 psi1_e = error(:, 6);
