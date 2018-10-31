@@ -74,24 +74,6 @@ if A_ev < 0
         disp('NOT asymptotically stable from eigenvalues')
 end
 
-%% Feedforward
-% g = 9.81;
-% m1_star = m1 + m2 * b2 / L2;
-% a1_ = a1 + ((m2 * b2 / L2) / m1_star) * h1;
-% b1_ = b1 - ((m2 * b2 / L2) / m1_star) * h1;
-% F_z1_ = m1_star * g * b1_ / L1;
-% F_z2_ = m1_star * g * a1_ / L1;
-% F_z3_ = m2 * g * a2 / L2;
-% 
-% f1 = C1 / F_z1_;
-% f2 = C2 / F_z2_;
-% s1 = a1 * b1 * (f1 - f2) / (f1 * b1 + f2 * a1);
-% s1_ = s1 + (m2 * b2 / L2) * h1 / m1_star;
-% V_crit = sqrt( (C1*a1.^2 + C2*b1.^2 - (C1 + C2) * s1.^2) / (m1_star * s1_));
-% 
-% v_ch = sqrt(L1.^2 * C1 * C2 / ((m1_star) * (C2 * b1 - C1 * a1)));
-% K_k = 1 ./ (L1 * (1 + (v / V_crit)));
-
 %% LQR Gains
 steer_max = 45; %[degrees]
 
@@ -127,7 +109,7 @@ F = MM(1:n, end-l+1:end);
 N = MM(end-m+1:end, end-l+1:end);
 
 %% Trajectory Generation
-track_vector = csvread('t_backward_straight.txt');
+track_vector = csvread('t_lanechange.txt');
 if v < 0
     fprintf('Going Backwards!')
     track_vector(:, 4) = track_vector(:, 4) - pi;
@@ -193,7 +175,7 @@ hold on
 plot(tout, 0*linspace(0, length(tout), length(tout))', '--r')
 line([tout(terminal_index) tout(terminal_index)], [max(rad2deg(theta_e)) min(rad2deg(theta_e))],'Color','red')
 hold off
-ylabel('\theta [{\circ}]')
+ylabel('\theta_e [{\circ}]')
 ax2 = subplot(3, 1, 2);
 plot(tout, d1_e)
 hold on
@@ -212,6 +194,34 @@ ylabel('\psi_{1e} [{\circ}]')
 xlabel('time [s]')
 legend('response', 'desired')
 movegui('west')
+linkaxes([ax1 ax2, ax3], 'x')
+
+figure
+ax1 = subplot(3, 1, 1);
+plot(tout, rad2deg(theta_e))
+hold on
+plot(tout, rad2deg(r(:, 1)), '--r')
+line([tout(terminal_index) tout(terminal_index)], [max(rad2deg(theta_e)) min(rad2deg(theta_e))],'Color','red')
+hold off
+ylabel('\theta [{\circ}]')
+ax2 = subplot(3, 1, 2);
+plot(tout, d1_e)
+hold on
+plot(tout, r(:, 2), '--r')
+line([tout(terminal_index) tout(terminal_index)], [max(d1_e) min(d1_e)],'Color','red')
+hold off
+ylabel('d_{1} [m]')
+ax3 = subplot(3, 1, 3);
+plot(tout, rad2deg(psi1_e))
+hold on
+plot(tout, rad2deg(r(:, 3)), '--r')
+line([tout(terminal_index) tout(terminal_index)], [max(rad2deg(psi1_e)) min(rad2deg(psi1_e))],'Color','red')
+hold off
+ylabel('\psi_{1} [{\circ}]')
+
+xlabel('time [s]')
+legend('response', 'desired')
+movegui('south')
 linkaxes([ax1 ax2, ax3], 'x')
 
 figure
