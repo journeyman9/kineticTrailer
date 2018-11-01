@@ -109,7 +109,7 @@ F = MM(1:n, end-l+1:end);
 N = MM(end-m+1:end, end-l+1:end);
 
 %% Trajectory Generation
-track_vector = csvread('t_lanechange.txt');
+track_vector = csvread('t_backward_straight.txt');
 if v < 0
     fprintf('Going Backwards!')
     track_vector(:, 4) = track_vector(:, 4) - pi;
@@ -120,7 +120,7 @@ y_IC = 0;
 psi_2_IC = deg2rad(0) + track_vector(1, 4);
 hitch_IC = deg2rad(0);
 
-look_ahead = 5; %indices
+look_ahead = 0; %indices
 
 % x = [y_d1, psi_d1, theta_d, theta, d1, psi_1]
 psi_1_IC = hitch_IC + psi_2_IC;
@@ -135,6 +135,11 @@ sim('trailer_kinetic.slx')
 theta_e = error(:, 4);
 d1_e = error(:, 5);
 psi1_e = error(:, 6);
+
+% state
+theta = state(:, 4);
+d1 = state(:, 5);
+psi_1 = state(:, 6);
 
 %% Jack-knife check 
 hitch_angle = odometry(:, 8);
@@ -197,32 +202,32 @@ movegui('west')
 linkaxes([ax1 ax2, ax3], 'x')
 
 figure
-ax1 = subplot(3, 1, 1);
-plot(tout, rad2deg(theta_e))
+axx1 = subplot(3, 1, 1);
+plot(tout, rad2deg(theta))
 hold on
 plot(tout, rad2deg(r(:, 1)), '--r')
-line([tout(terminal_index) tout(terminal_index)], [max(rad2deg(theta_e)) min(rad2deg(theta_e))],'Color','red')
+line([tout(terminal_index) tout(terminal_index)], [max(rad2deg(theta)) min(rad2deg(theta))],'Color','red')
 hold off
 ylabel('\theta [{\circ}]')
-ax2 = subplot(3, 1, 2);
-plot(tout, d1_e)
+axx2 = subplot(3, 1, 2);
+plot(tout, d1)
 hold on
 plot(tout, r(:, 2), '--r')
-line([tout(terminal_index) tout(terminal_index)], [max(d1_e) min(d1_e)],'Color','red')
+line([tout(terminal_index) tout(terminal_index)], [max(d1) min(d1)],'Color','red')
 hold off
 ylabel('d_{1} [m]')
-ax3 = subplot(3, 1, 3);
-plot(tout, rad2deg(psi1_e))
+axx3 = subplot(3, 1, 3);
+plot(tout, rad2deg(psi_1))
 hold on
 plot(tout, rad2deg(r(:, 3)), '--r')
-line([tout(terminal_index) tout(terminal_index)], [max(rad2deg(psi1_e)) min(rad2deg(psi1_e))],'Color','red')
+line([tout(terminal_index) tout(terminal_index)], [max(rad2deg(psi_1)) min(rad2deg(psi_1))],'Color','red')
 hold off
 ylabel('\psi_{1} [{\circ}]')
 
 xlabel('time [s]')
 legend('response', 'desired')
 movegui('south')
-linkaxes([ax1 ax2, ax3], 'x')
+linkaxes([axx1 axx2, axx3], 'x')
 
 figure
 hold on
