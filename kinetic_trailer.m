@@ -24,21 +24,21 @@ v = 4.5; %[m/s] 2.2352
 L1_star = a1 + h1; %[m]
 e1 = L1_star - L1; %[m]
 
-%% x = [y_d1, psi_d1, theta_d, theta, d1, psi_1]
-M = [(m1 + m2)      -m2 * (a2 + h1)          -m2 * a2           0       0       0;
-     -m2 * h1    J1 + m2*h1*(h1+a2)          m2 * h1 * a2       0       0       0;  
-     -m2 * a2    J2 + m2*a2*(a2+h1)         J2 + m2*a2.^2       0       0       0;
-         0               0                       0              1       0       0;
-         0               0                       0              0       1       0;
-         0               0                       0              0       0       1];
+%% x = [y_d1, psi_d1, psi_d2, psi_1, psi_2, y2] where d_d2 = y_d1 - (h1+a2)\psi_d_1 - a2\theta_d + v\psi_1 (with -v \theta)
+M = [(m1 + m2)     -m2 * h1          -m2 * a2          0       0    0;
+     -m2 * h1    J1 + m2*h1.^2       m2 * h1 * a2      0       0    0;  
+     -m2 * a2      m2*h1*a2         J2 + m2*a2.^2      0       0    0;
+         0               0              0              1       0    0;
+         0               0              0              0       1    0;
+         0               0              0              0       0    1];
      
-S = (-1 / v) * [(C1+C2+C3)              (C1*a1 - C2*b1 - C3*(h1+L2) + (m1+m2)*v.^2)          (-C3*L2)     (-C3*v)   0       0;
-                (C1*a1 - C2*b1 - C3*h1) (C1*a1.^2 + C2*b1.^2 + C3*h1*(h1+L2) - m2*h1*v.^2)   (C3*h1*L2)  (C3*h1*v)  0       0;
-                (-C3*L2)                     (C3*L2*(h1+L2) - m2*a2*v.^2)                    (C3*L2.^2)  (C3*L2*v)  0       0;
-                   0                                       0                                    -v           0      0       0;
-                  -v                                       0                                     0           0      0      -v.^2;
-                   0                                      -v                                     0           0      0       0];
-
+S = (-1 / v) * [      (C1+C2+C3)                  (C1*a1 - C2*b1 - C3*h1 + (m1+m2)*v.^2)      -C3*L2     C3*v      -C3*v        0;
+                (C1*a1 - C2*b1 - C3*h1)       (C1*a1.^2 + C2*b1.^2 + C3*h1.^2 - m2*h1*v.^2)  C3*h1*L2   -C3*h1*v    C3*h1*v     0;
+                       -C3*L2                     (C3*L2*h1 - m2*a2*v.^2)                    C3*L2.^2  -C3*L2*v  C3*L2*v        0;
+                   0                                      -v                                     0         0           0        0;
+                   0                                       0                                    -v         0           0        0;
+                  -v                                      -h1*(-v)                              -a2*(-v)  -v*(-v)     2*v*(-v)  0];
+                  
 E = [C1; C1*a1; 0; 0; 0; 0];
 
 A = M \ S;
@@ -76,7 +76,7 @@ end
 
 %% LQR Gains
 steer_max = 45; %[degrees]
-
+ 
 G = [0 0 0 1 0 0;
      0 0 0 0 1 0;
      0 0 0 0 0 1];
@@ -86,8 +86,8 @@ R = 1;
 Q = eye(3);
 % R = 1 / (deg2rad(steer_max).^2);
 % Q = [1/(deg2rad(5).^2)       0                       0;
-%      0                   1/(1.^2)           0;
-%      0                        0                1/(deg2rad(5).^2)];
+%      0                   1/(deg2rad(5).^2)           0;
+%      0                        0                1/(1.^2)];
 
 QQ = G'*Q*G;
 RR = H'*Q*H + rho*R;
@@ -109,7 +109,7 @@ F = MM(1:n, end-l+1:end);
 N = MM(end-m+1:end, end-l+1:end);
 
 %% Trajectory Generation
-track_vector = csvread('t_backward_straight.txt');
+track_vector = csvread('t_lanechange.txt');
 if v < 0
     fprintf('Going Backwards!')
     track_vector(:, 4) = track_vector(:, 4) - pi;
@@ -122,24 +122,24 @@ hitch_IC = deg2rad(0);
 
 look_ahead = 0; %indices
 
-% x = [y_d1, psi_d1, theta_d, theta, d1, psi_1]
+% x = [y_d1, psi_d1, theta_d, psi_1, psi_2, y2]
 psi_1_IC = hitch_IC + psi_2_IC;
 
 trailerIC = [track_vector(1, 1)-y_IC*sin(psi_2_IC), track_vector(1, 2)+y_IC*cos(psi_2_IC)]; %x2, y2
 tractorIC = [trailerIC(1)+a2*cos(psi_2_IC)+h1*cos(psi_1_IC), trailerIC(2)+a2*sin(psi_2_IC)+h1*sin(psi_1_IC)]; %x1, y1
-ICs = [0; deg2rad(0); deg2rad(0); deg2rad(0); y_IC; psi_1_IC];
+ICs = [0; deg2rad(0); deg2rad(0); psi_1_IC; psi_2_IC; y_IC];
 
 sim('trailer_kinetic.slx')
 
-% e = yd_1; psi_d_1; theta_d; theta; d_1; psi_1
-theta_e = error(:, 4);
-d1_e = error(:, 5);
-psi1_e = error(:, 6);
+% x = [y_d1, psi_d1, psi_d2, psi_1, psi_2, y2]
+psi_1_e = error(:, 4);
+psi_2_e = error(:, 5);
+d1_e = error(:, 6);
 
 % state
-theta = state(:, 4);
-d1 = state(:, 5);
-psi_1 = state(:, 6);
+psi_1 = state(:, 4);
+psi_2 = state(:, 5);
+d1 = state(:, 6);
 
 %% Jack-knife check 
 hitch_angle = odometry(:, 8);
@@ -175,26 +175,27 @@ psi_trailer = odometry(1:terminal_index, 3);
 %% Plots
 figure
 ax1 = subplot(3, 1, 1);
-plot(tout, rad2deg(theta_e))
+plot(tout, rad2deg(psi_1_e))
 hold on
 plot(tout, 0*linspace(0, length(tout), length(tout))', '--r')
-line([tout(terminal_index) tout(terminal_index)], [max(rad2deg(theta_e)) min(rad2deg(theta_e))],'Color','red')
+line([tout(terminal_index) tout(terminal_index)], [max(rad2deg(psi_1_e)) min(rad2deg(psi_1_e))],'Color','red')
 hold off
-ylabel('\theta_e [{\circ}]')
+ylabel('\psi_{1e} [{\circ}]')
 ax2 = subplot(3, 1, 2);
+plot(tout, rad2deg(psi_2_e))
+hold on
+plot(tout, 0*linspace(0, length(tout), length(tout))', '--r')
+line([tout(terminal_index) tout(terminal_index)], [max(rad2deg(psi_2_e)) min(rad2deg(psi_2_e))],'Color','red')
+hold off
+ylabel('\psi_{2e} [{\circ}]')
+ax3 = subplot(3, 1, 3);
 plot(tout, d1_e)
 hold on
 plot(tout, 0*linspace(0, length(tout), length(tout))', '--r')
 line([tout(terminal_index) tout(terminal_index)], [max(d1_e) min(d1_e)],'Color','red')
 hold off
 ylabel('d_{1e} [m]')
-ax3 = subplot(3, 1, 3);
-plot(tout, rad2deg(psi1_e))
-hold on
-plot(tout, 0*linspace(0, length(tout), length(tout))', '--r')
-line([tout(terminal_index) tout(terminal_index)], [max(rad2deg(psi1_e)) min(rad2deg(psi1_e))],'Color','red')
-hold off
-ylabel('\psi_{1e} [{\circ}]')
+
 
 xlabel('time [s]')
 legend('response', 'desired')
@@ -202,32 +203,31 @@ movegui('west')
 linkaxes([ax1 ax2, ax3], 'x')
 
 figure
-axx1 = subplot(3, 1, 1);
-plot(tout, rad2deg(theta))
-hold on
-plot(tout, rad2deg(r(:, 1)), '--r')
-line([tout(terminal_index) tout(terminal_index)], [max(rad2deg(theta)) min(rad2deg(theta))],'Color','red')
-hold off
-ylabel('\theta [{\circ}]')
-axx2 = subplot(3, 1, 2);
-plot(tout, d1)
-hold on
-plot(tout, r(:, 2), '--r')
-line([tout(terminal_index) tout(terminal_index)], [max(d1) min(d1)],'Color','red')
-hold off
-ylabel('d_{1} [m]')
-axx3 = subplot(3, 1, 3);
+ax1 = subplot(3, 1, 1);
 plot(tout, rad2deg(psi_1))
 hold on
-plot(tout, rad2deg(r(:, 3)), '--r')
+plot(tout, rad2deg(r(:, 1)), '--r')
 line([tout(terminal_index) tout(terminal_index)], [max(rad2deg(psi_1)) min(rad2deg(psi_1))],'Color','red')
 hold off
 ylabel('\psi_{1} [{\circ}]')
-
+ax2 = subplot(3, 1, 2);
+plot(tout, rad2deg(psi_2))
+hold on
+plot(tout, rad2deg(r(:, 2)), '--r')
+line([tout(terminal_index) tout(terminal_index)], [max(rad2deg(psi_2)) min(rad2deg(psi_2))],'Color','red')
+hold off
+ylabel('\psi_{2} [{\circ}]')
+ax3 = subplot(3, 1, 3);
+plot(tout, d1)
+hold on
+plot(tout, r(:, 3), '--r')
+line([tout(terminal_index) tout(terminal_index)], [max(d1) min(d1)],'Color','red')
+hold off
+ylabel('d_{1} [m]')
 xlabel('time [s]')
 legend('response', 'desired')
 movegui('south')
-linkaxes([axx1 axx2, axx3], 'x')
+linkaxes([ax1 ax2, ax3], 'x')
 
 figure
 hold on
