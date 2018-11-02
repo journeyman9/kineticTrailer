@@ -109,14 +109,14 @@ F = MM(1:n, end-l+1:end);
 N = MM(end-m+1:end, end-l+1:end);
 
 %% Trajectory Generation
-track_vector = csvread('t_lanechange.txt');
+track_vector = csvread('t_backward_straight.txt');
 if v < 0
     fprintf('Going Backwards!')
     track_vector(:, 4) = track_vector(:, 4) - pi;
 end
 
 %% Simulink
-y_IC = 0;
+y_IC = 0.1;
 psi_2_IC = deg2rad(0) + track_vector(1, 4);
 hitch_IC = deg2rad(0);
 
