@@ -111,7 +111,7 @@ N = MM(end-m+1:end, end-l+1:end);
 %% Trajectory Generation
 track_vector = csvread('t_horizontal.txt');
 if v < 0
-    fprintf('Going Backwards!')
+    fprintf('Going Backwards!\n')
     track_vector(:, 4) = track_vector(:, 4) + pi;
 end
 
@@ -162,7 +162,7 @@ end
 if goal(end) == 1
     fprintf('GOAL with d = %4.2f m and psi = %4.2f degrees\n', d_goal(end), rad2deg(psi_goal(end)))
 else
-    [minimum, best_index] = min(d_goal(1:terminal_index));
+    [minimum, best_index] = min(d_goal(1500:terminal_index));
     fprintf('TIMES UP. Closest: d = %4.2f m and psi = %4.2f degrees\n', minimum, rad2deg(psi_goal(best_index)))
 end
 
