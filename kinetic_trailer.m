@@ -19,7 +19,7 @@ a2 = 6.2941; %[m]
 L2 = 12.192; %[m]
 b2 = L2 - a2; %[m]
 C3 = 1057244; %[N/rad] 4 tires
-v = -4.5; %[m/s] 2.2352
+v = 4.5; %[m/s] 2.2352
 
 L1_star = a1 + h1; %[m]
 e1 = L1_star - L1; %[m]
@@ -127,7 +127,7 @@ look_ahead = 0; %indices
 % x = [y_d1, psi_d1, theta_d, psi_1, psi_2, y2]
 psi_1_IC = -hitch_IC + psi_2_IC;
 
-trailerIC = [track_vector(1, 1)-y_IC*sin(psi_2_IC)+b2*cos(psi_2_IC), track_vector(1, 2)+y_IC*cos(psi_2_IC)+b2*sin(psi_2_IC)]; %x2, y2
+trailerIC = [track_vector(1, 1)-y_IC*sin(track_vector(1, 4))+b2*cos(track_vector(1, 4)), track_vector(1, 2)+y_IC*cos(track_vector(1, 4))+b2*sin(track_vector(1, 4))]; %x2, y2
 tractorIC = [trailerIC(1)+a2*cos(psi_2_IC)+h1*cos(psi_1_IC), trailerIC(2)+a2*sin(psi_2_IC)+h1*sin(psi_1_IC)]; %x1, y1
 ICs = [0; deg2rad(0); deg2rad(0); psi_1_IC; psi_2_IC; y_IC];
 
